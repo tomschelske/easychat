@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyChat</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 50%, #f0f9ff 100%);
+      color: #18181b;
+      min-height: 100vh;
+    }
+
+    /* ── Utility ── */
+    .hidden { display: none !important; }
+
+    button {
+      cursor: pointer;
+      padding: 11px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Inter', system-ui, sans-serif;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.98); }
+
+    input[type="text"] {
+      padding: 11px 14px;
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: 'Inter', system-ui, sans-serif;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.45);
+    }
+    .btn-danger    { background: #ef4444; color: #fff; box-shadow: 0 2px 6px rgba(239,68,68,0.3); }
+    .btn-danger:hover  { background: #dc2626; }
+    .btn-ghost     { background: transparent; color: #6366f1; border: 1.5px solid #6366f1; }
+    .btn-ghost:hover   { background: #eef2ff; }
+
+    /* ── Landing view ── */
+    #view-landing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 8px;
+      padding: 24px;
+    }
+
+    .landing-logo {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 4px;
+    }
+
+    .landing-subtitle {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 28px;
+      letter-spacing: 0.01em;
+    }
+
+    .landing-card {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 16px;
+      padding: 36px;
+      width: 100%;
+      max-width: 390px;
+      box-shadow: 0 8px 32px rgba(99,102,241,0.1), 0 1px 2px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a1a1aa;
+      font-size: 13px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e4e4e7;
+    }
+
+    /* ── Modal overlay ── */
+    #view-name-prompt {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.16);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal h2 { font-size: 1.25rem; }
+    .modal p  { color: #71717a; font-size: 14px; }
+    .error-msg { color: #ef4444; font-size: 13px; min-height: 18px; }
+
+    /* ── Chat view ── */
+    #view-chat {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .chat-header {
+      background: #fff;
+      border-bottom: 1px solid #e4e4e7;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-header h2 { font-size: 1rem; flex: 1; }
+    .presence-badge {
+      font-size: 13px;
+      color: #71717a;
+      background: #f4f4f5;
+      padding: 4px 10px;
+      border-radius: 99px;
+    }
+
+    .connection-banner {
+      background: #fef3c7;
+      color: #92400e;
+      text-align: center;
+      font-size: 13px;
+      padding: 6px;
+    }
+
+    .message-feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg {
+      max-width: 70%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .msg-mine {
+      align-self: flex-end;
+      background: #6366f1;
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg-theirs {
+      align-self: flex-start;
+      background: #fff;
+      border: 1px solid #e4e4e7;
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg-theirs .msg-sender {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6366f1;
+      margin-bottom: 2px;
+    }
+
+    .msg-system {
+      align-self: center;
+      font-size: 12px;
+      color: #a1a1aa;
+      background: none;
+      border: none;
+      padding: 2px 0;
+    }
+
+    .msg-time {
+      font-size: 10px;
+      opacity: .6;
+      margin-top: 3px;
+      text-align: right;
+    }
+
+    .chat-input-row {
+      background: #fff;
+      border-top: 1px solid #e4e4e7;
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input-row input { flex: 1; }
+    .chat-input-row button { flex-shrink: 0; }
+
+    /* ── Error view ── */
+    #view-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 14px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    #view-error h2 { font-size: 1.5rem; }
+    #view-error p  { color: #71717a; }
+  </style>
+</head>
+<body>
+
+  <!-- ── View 1: Landing ── -->
+  <div id="view-landing">
+    <div id="landing-notice" class="hidden" style="background:#fef3c7;color:#92400e;padding:10px 16px;border-radius:8px;font-size:14px;max-width:390px;text-align:center;margin-bottom:4px"></div>
+    <div class="landing-logo">EasyChat</div>
+    <p class="landing-subtitle">Seamless and Private Group Chats</p>
+    <div class="landing-card">
+      <button class="btn-primary" onclick="createRoom()">Create a new room</button>
+      <div class="divider">or join an existing one</div>
+      <input id="join-code-input" type="text" placeholder="Enter room code" maxlength="6"
+             oninput="this.value = this.value.toUpperCase()"
+             onkeydown="if(event.key==='Enter') joinByCode()" />
+      <button class="btn-ghost" onclick="joinByCode()">Join room</button>
+    </div>
+  </div>
+
+  <!-- ── View 2: Name prompt modal (overlays chat) ── -->
+  <div id="view-name-prompt" class="hidden">
+    <div class="modal">
+      <h2>Choose a display name</h2>
+      <p>This name is only used in this room. You can change it next time.</p>
+      <input id="name-input" type="text" placeholder="Your name" maxlength="32"
+             onkeydown="if(event.key==='Enter') submitName()" />
+      <div class="error-msg" id="name-error"></div>
+      <button class="btn-primary" onclick="submitName()">Enter room</button>
+    </div>
+  </div>
+
+  <!-- ── View 3: Chat ── -->
+  <div id="view-chat" class="hidden">
+    <div class="chat-header">
+      <h2 id="chat-room-label">Room</h2>
+      <span class="presence-badge" id="presence-badge">0 online</span>
+      <button class="btn-ghost" onclick="copyLink()" style="padding:6px 12px;font-size:13px">Copy link</button>
+      <button class="btn-danger hidden" id="delete-btn" onclick="deleteRoom()" style="padding:6px 12px;font-size:13px">Delete room</button>
+    </div>
+    <div class="connection-banner hidden" id="conn-banner">Reconnecting…</div>
+    <div class="message-feed" id="message-feed"></div>
+    <div class="chat-input-row">
+      <input id="msg-input" type="text" placeholder="Type a message…" maxlength="1000"
+             onkeydown="if(event.key==='Enter') sendMessage()" disabled />
+      <button class="btn-primary" id="send-btn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+  </div>
+
+  <!-- ── View 4: Error ── -->
+  <div id="view-error" class="hidden">
+    <h2 id="error-title">Room not found</h2>
+    <p id="error-body">This room doesn't exist or has expired.</p>
+    <button class="btn-primary" onclick="goHome()">Back to home</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    let roomCode     = null;
+    let creatorToken = null;
+    let myName       = null;
+    let stompClient  = null;
+    let connected    = false;
+    let lastMsgTime  = null; // for deduplicating buffer replay after reconnect
+
+    const COOKIE_NAME = 'ephemeral_chat_name';
+
+    // ── Cookie helpers ─────────────────────────────────────────────────────
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function setCookie(name, value) {
+      const expires = new Date(Date.now() + 365 * 864e5).toUTCString();
+      document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=Lax';
+    }
+
+    // ── View switching ─────────────────────────────────────────────────────
+    function showOnly(id) {
+      ['view-landing', 'view-name-prompt', 'view-chat', 'view-error']
+        .forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+    }
+
+    function goHome(notice) {
+      if (stompClient) { stompClient.disconnect(); stompClient = null; }
+      roomCode = creatorToken = myName = null;
+      connected = false;
+      history.pushState(null, '', '/');
+      showOnly('view-landing');
+      const el = document.getElementById('landing-notice');
+      if (notice) { el.textContent = notice; el.classList.remove('hidden'); }
+      else { el.classList.add('hidden'); }
+    }
+
+    function showError(title, body) {
+      document.getElementById('error-title').textContent = title;
+      document.getElementById('error-body').textContent  = body;
+      showOnly('view-error');
+    }
+
+    // ── Landing ────────────────────────────────────────────────────────────
+    function createRoom() {
+      fetch('/api/rooms', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          creatorToken = data.creatorToken;
+          setCookie('creator_' + data.roomCode, creatorToken);
+          history.pushState(null, '', '/r/' + data.roomCode);
+          enterRoom(data.roomCode);
+        });
+    }
+
+    function joinByCode() {
+      const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+      if (!code) return;
+      history.pushState(null, '', '/r/' + code);
+      enterRoom(code);
+    }
+
+    // ── Room entry — validate then show name prompt ────────────────────────
+    function enterRoom(code) {
+      // Clear state from any previous room
+      document.getElementById('message-feed').innerHTML = '';
+      document.getElementById('presence-badge').textContent = '0 online';
+      document.getElementById('delete-btn').classList.add('hidden');
+      lastMsgTime = null;
+
+      roomCode = code.toUpperCase();
+      // Restore creator token from cookie if this user created this room
+      creatorToken = getCookie('creator_' + roomCode) || null;
+      document.getElementById('chat-room-label').textContent = 'Room ' + roomCode;
+
+      fetch('/api/rooms/' + roomCode)
+        .then(r => {
+          if (r.status === 404) { goHome('That room doesn\'t exist or has already expired.'); return; }
+          return r.json();
+        })
+        .then(data => {
+          if (!data) return;
+          showNamePrompt();
+        });
+    }
+
+    function showNamePrompt() {
+      document.getElementById('name-error').textContent = '';
+      const saved = getCookie(COOKIE_NAME);
+      const input = document.getElementById('name-input');
+      input.value = saved;
+      showOnly('view-name-prompt');
+      // Show chat behind the modal so the layout is ready
+      document.getElementById('view-chat').classList.remove('hidden');
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function submitName() {
+      const name = document.getElementById('name-input').value.trim();
+      if (!name) { document.getElementById('name-error').textContent = 'Please enter a name.'; return; }
+      myName = name;
+      setCookie(COOKIE_NAME, name);
+      document.getElementById('view-name-prompt').classList.add('hidden');
+      connectWebSocket();
+    }
+
+    // ── WebSocket ──────────────────────────────────────────────────────────
+    function connectWebSocket() {
+      setConnected(false);
+
+      const socket = new SockJS('/ws');
+      stompClient = Stomp.over(socket);
+      stompClient.debug = null;
+
+      stompClient.connect({}, onConnected, onDisconnected);
+    }
+
+    function onConnected() {
+      // Subscribe to room broadcast
+      stompClient.subscribe('/topic/room/' + roomCode, onRoomMessage);
+
+      // Subscribe to personal channel (errors, buffer replay, join confirmation)
+      stompClient.subscribe('/user/queue/personal', onPersonalMessage);
+
+      // Send join request
+      stompClient.send('/app/room/' + roomCode + '/join', {}, JSON.stringify({
+        type: 'JOIN', sender: myName
+      }));
+    }
+
+    function onDisconnected() {
+      setConnected(false);
+      // Attempt reconnect after 2 seconds
+      setTimeout(() => {
+        if (roomCode && myName) connectWebSocket();
+      }, 2000);
+    }
+
+    function setConnected(val) {
+      connected = val;
+      document.getElementById('msg-input').disabled  = !val;
+      document.getElementById('send-btn').disabled   = !val;
+      document.getElementById('conn-banner').classList.toggle('hidden', val);
+    }
+
+    // ── Incoming messages ──────────────────────────────────────────────────
+    function onRoomMessage(frame) {
+      const msg = JSON.parse(frame.body);
+
+      if (msg.type === 'CHAT') {
+        appendMessage(msg);
+      }
+      if (msg.type === 'JOIN') {
+        appendSystem(msg.sender + ' joined');
+        setPresence(msg.presenceCount);
+      }
+      if (msg.type === 'LEAVE') {
+        appendSystem(msg.sender + ' left');
+        setPresence(msg.presenceCount);
+      }
+      if (msg.type === 'SYSTEM' && msg.content === 'ROOM_DELETED') {
+        stompClient.disconnect();
+        goHome('That room was deleted by the creator.');
+      }
+      if (msg.type === 'SYSTEM' && msg.content === 'ROOM_EXPIRED') {
+        stompClient.disconnect();
+        goHome('That room expired due to inactivity.');
+      }
+    }
+
+    function onPersonalMessage(frame) {
+      const msg = JSON.parse(frame.body);
+
+      if (msg.type === 'ERROR' && msg.content === 'NAME_TAKEN') {
+        // Show the name prompt again with an error
+        document.getElementById('name-error').textContent = 'That name is already in use. Choose another.';
+        document.getElementById('view-name-prompt').classList.remove('hidden');
+        stompClient.disconnect();
+        return;
+      }
+      if (msg.type === 'ERROR' && msg.content === 'ROOM_NOT_FOUND') {
+        stompClient.disconnect();
+        goHome('That room doesn\'t exist or has already expired.');
+        return;
+      }
+      if (msg.type === 'SYSTEM' && msg.content === 'JOIN_OK') {
+        setConnected(true);
+        // Show delete button only for the creator
+        if (creatorToken) document.getElementById('delete-btn').classList.remove('hidden');
+        return;
+      }
+      if (msg.type === 'CHAT') {
+        // Buffer replay — skip messages already on screen
+        if (lastMsgTime && msg.timestamp <= lastMsgTime) return;
+        appendMessage(msg, true);
+      }
+    }
+
+    // ── Message rendering ──────────────────────────────────────────────────
+    function appendMessage(msg, isHistory) {
+      const feed = document.getElementById('message-feed');
+      const mine = msg.sender === myName;
+      const div  = document.createElement('div');
+      div.className = 'msg ' + (mine ? 'msg-mine' : 'msg-theirs');
+
+      const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (!mine) {
+        const sender = document.createElement('div');
+        sender.className = 'msg-sender';
+        sender.textContent = msg.sender;
+        div.appendChild(sender);
+      }
+
+      const text = document.createElement('div');
+      text.textContent = msg.content;
+      div.appendChild(text);
+
+      const ts = document.createElement('div');
+      ts.className = 'msg-time';
+      ts.textContent = isHistory ? time + ' (history)' : time;
+      div.appendChild(ts);
+
+      feed.appendChild(div);
+      feed.scrollTop = feed.scrollHeight;
+
+      if (!isHistory) lastMsgTime = msg.timestamp;
+    }
+
+    function appendSystem(text) {
+      const feed = document.getElementById('message-feed');
+      const div  = document.createElement('div');
+      div.className = 'msg msg-system';
+      div.textContent = text;
+      feed.appendChild(div);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function setPresence(count) {
+      document.getElementById('presence-badge').textContent =
+        count === 1 ? '1 online' : count + ' online';
+    }
+
+    // ── Send ───────────────────────────────────────────────────────────────
+    function sendMessage() {
+      if (!connected || !stompClient) return;
+      const input   = document.getElementById('msg-input');
+      const content = input.value.trim();
+      if (!content) return;
+      stompClient.send('/app/room/' + roomCode + '/send', {}, JSON.stringify({
+        type: 'CHAT', content
+      }));
+      input.value = '';
+    }
+
+    // ── Room actions ───────────────────────────────────────────────────────
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => alert('Link copied to clipboard!'));
+    }
+
+    function deleteRoom() {
+      if (!creatorToken) return;
+      if (!confirm('Delete this room? All participants will be disconnected.')) return;
+      fetch('/api/rooms/' + roomCode, {
+        method: 'DELETE',
+        headers: { 'X-Creator-Token': creatorToken }
+      });
+    }
+
+    // ── Router — handle /r/{code} on load ─────────────────────────────────
+    (function init() {
+      const match = window.location.pathname.match(/^\/r\/([A-Z0-9]{6})$/i);
+      if (match) {
+        enterRoom(match[1]);
+      } else {
+        showOnly('view-landing');
+      }
+    })();
+  </script>
+</body>
+</html>

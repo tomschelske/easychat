@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Phase 3 — Chat Test</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; }
+    #log { border: 1px solid #ccc; padding: 10px; height: 250px; overflow-y: auto; background: #f9f9f9; margin-bottom: 8px; }
+    .msg-JOIN    { color: green; }
+    .msg-LEAVE   { color: orange; }
+    .msg-ERROR   { color: red; font-weight: bold; }
+    .msg-SYSTEM  { color: #666; font-style: italic; }
+    .msg-CHAT    { color: black; }
+    input { padding: 6px; margin: 2px; }
+    button { padding: 6px 10px; margin: 2px; cursor: pointer; }
+    #deleteBtn { background: #c00; color: white; display: none; }
+  </style>
+</head>
+<body>
+  <h2>Phase 3 Chat Test <span id="presence"></span></h2>
+
+  <div>
+    <button onclick="createRoom()">Create Room</button>
+    <input id="roomCodeInput" placeholder="or enter code" style="width:100px" />
+    <button onclick="joinRoom()">Join</button>
+    <input id="nameInput" placeholder="Display name" style="width:120px" />
+    <button id="deleteBtn" onclick="deleteRoom()">Delete Room</button>
+    &nbsp;<strong id="roomLabel"></strong>
+  </div>
+  <br>
+  <div id="log"></div>
+  <div>
+    <input id="msgInput" placeholder="Message..." style="width:400px" onkeydown="if(event.key==='Enter')sendMsg()" />
+    <button onclick="sendMsg()">Send</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script>
+    let stompClient = null;
+    let roomCode = null;
+    let creatorToken = null;
+
+    function log(msg, type) {
+      const div = document.getElementById('log');
+      const cls = 'msg-' + (type || 'CHAT');
+      div.innerHTML += `<div class="${cls}">${new Date().toLocaleTimeString()} — ${msg}</div>`;
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function setPresence(count) {
+      document.getElementById('presence').textContent = count != null ? `(${count} online)` : '';
+    }
+
+    function createRoom() {
+      fetch('/api/rooms', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          roomCode = data.roomCode;
+          creatorToken = data.creatorToken;
+          document.getElementById('roomCodeInput').value = roomCode;
+          document.getElementById('roomLabel').textContent = 'Room: ' + roomCode;
+          document.getElementById('deleteBtn').style.display = 'inline';
+          log('Room created: ' + roomCode + ' (you are the creator)', 'SYSTEM');
+        });
+    }
+
+    function joinRoom() {
+      roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+      const name = document.getElementById('nameInput').value.trim();
+      if (!roomCode || !name) { log('Enter a room code and name.', 'ERROR'); return; }
+
+      document.getElementById('roomLabel').textContent = 'Room: ' + roomCode;
+
+      const socket = new SockJS('/ws');
+      stompClient = Stomp.over(socket);
+      stompClient.debug = null;
+
+      stompClient.connect({}, () => {
+        stompClient.subscribe('/topic/room/' + roomCode, frame => {
+          const msg = JSON.parse(frame.body);
+          if (msg.type === 'JOIN')  { log('★ ' + msg.sender + ' joined', 'JOIN'); setPresence(msg.presenceCount); }
+          if (msg.type === 'LEAVE') { log('✦ ' + msg.sender + ' left', 'LEAVE'); setPresence(msg.presenceCount); }
+          if (msg.type === 'CHAT')  { log(msg.sender + ': ' + msg.content, 'CHAT'); }
+          if (msg.type === 'SYSTEM' && msg.content === 'ROOM_DELETED') {
+            log('Room was deleted by the creator.', 'ERROR');
+            stompClient.disconnect();
+          }
+          if (msg.type === 'SYSTEM' && msg.content === 'ROOM_EXPIRED') {
+            log('Room expired due to inactivity.', 'ERROR');
+            stompClient.disconnect();
+          }
+        });
+
+        stompClient.subscribe('/user/queue/personal', frame => {
+          const msg = JSON.parse(frame.body);
+          if (msg.type === 'ERROR') { log('Error: ' + msg.content, 'ERROR'); stompClient.disconnect(); }
+          if (msg.type === 'CHAT')  { log('[history] ' + msg.sender + ': ' + msg.content, 'SYSTEM'); }
+          if (msg.type === 'SYSTEM' && msg.content === 'JOIN_OK') {
+            log('Joined as ' + msg.sender, 'SYSTEM');
+          }
+        });
+
+        stompClient.send('/app/room/' + roomCode + '/join', {}, JSON.stringify({
+          type: 'JOIN', sender: name
+        }));
+      });
+    }
+
+    function sendMsg() {
+      if (!stompClient) { log('Join a room first.', 'ERROR'); return; }
+      const content = document.getElementById('msgInput').value.trim();
+      if (!content) return;
+      stompClient.send('/app/room/' + roomCode + '/send', {}, JSON.stringify({ type: 'CHAT', content }));
+      document.getElementById('msgInput').value = '';
+    }
+
+    function deleteRoom() {
+      if (!creatorToken) { log('Only the creator can delete the room.', 'ERROR'); return; }
+      fetch('/api/rooms/' + roomCode, {
+        method: 'DELETE',
+        headers: { 'X-Creator-Token': creatorToken }
+      }).then(r => {
+        if (r.status === 204) log('Room deleted.', 'SYSTEM');
+        else log('Delete failed: ' + r.status, 'ERROR');
+      });
+    }
+  </script>
+</body>
+</html>
